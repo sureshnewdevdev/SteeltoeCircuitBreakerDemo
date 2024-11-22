@@ -1,7 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Steeltoe.CircuitBreaker.Hystrix;
 using SteeltoeCircuitBreakerDemo.Service;
-using Microsoft.Extensions.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,7 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSingleton(sp =>
 {
     var configSection = builder.Configuration.GetSection("Hystrix:Command:ExampleCommand");
-    var options = new HystrixCommandOptions(
+    return new HystrixCommandOptions(
         HystrixCommandGroupKeyDefault.AsKey("ExampleGroup"),
         HystrixCommandKeyDefault.AsKey("ExampleCommand"))
     {
@@ -18,19 +17,18 @@ builder.Services.AddSingleton(sp =>
         CircuitBreakerErrorThresholdPercentage = configSection.GetValue<int>("CircuitBreakerErrorThresholdPercentage"),
         CircuitBreakerSleepWindowInMilliseconds = configSection.GetValue<int>("CircuitBreakerSleepWindowInMilliseconds")
     };
-    return options;
 });
 
-// Register ExampleHystrixCommand with HystrixCommandOptions and IExampleService
-builder.Services.AddSingleton(sp =>
+// Register ExampleService and HTTP Client
+builder.Services.AddHttpClient<IExampleService, ExampleService>();
+
+// Register a factory for ExampleHystrixCommand
+builder.Services.AddScoped<ExampleHystrixCommand>(sp =>
 {
     var options = sp.GetRequiredService<HystrixCommandOptions>();
     var exampleService = sp.GetRequiredService<IExampleService>();
     return new ExampleHystrixCommand(options, exampleService);
 });
-
-// Register ExampleService and HTTP Client
-builder.Services.AddHttpClient<IExampleService, ExampleService>();
 
 // Add Controllers
 builder.Services.AddControllers();

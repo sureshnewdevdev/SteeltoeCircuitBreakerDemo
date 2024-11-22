@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using SteeltoeCircuitBreakerDemo.Service;
+using System.Threading.Tasks;
 
 namespace SteeltoeCircuitBreakerDemo.Controllers
 {
@@ -17,8 +18,8 @@ namespace SteeltoeCircuitBreakerDemo.Controllers
         [HttpGet("get-data")]
         public async Task<IActionResult> GetData()
         {
-            var result = await _hystrixCommand.ExecuteAsync();
-            return Ok(result);
+            var response = await _hystrixCommand.ExecuteAsync();
+            return Ok(response);
         }
     }
 }
