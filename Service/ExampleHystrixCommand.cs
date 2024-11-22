@@ -11,14 +11,13 @@ namespace SteeltoeCircuitBreakerDemo.Service
         public ExampleHystrixCommand(IHystrixCommandOptions options, IExampleService exampleService)
             : base(options)
         {
-            _exampleService = exampleService;
+            _exampleService = exampleService ?? throw new ArgumentNullException(nameof(exampleService));
         }
 
         protected override async Task<string> RunAsync()
         {
-            Console.WriteLine("Main function called");
+            // Simulate a failure
             throw new Exception("Simulated Failure");
-            return await _exampleService.GetExternalDataAsync();
         }
 
         protected override Task<string> RunFallbackAsync()

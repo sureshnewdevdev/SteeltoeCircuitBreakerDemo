@@ -1,58 +1,51 @@
-using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
-using Steeltoe.CircuitBreaker.Hystrix.MetricsStream;
 using Steeltoe.CircuitBreaker.Hystrix;
 using SteeltoeCircuitBreakerDemo.Service;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 
+var builder = WebApplication.CreateBuilder(args);
 
-
-
-
-namespace SteeltoeCircuitBreakerDemo
+// Configure HystrixCommandOptions explicitly
+builder.Services.AddSingleton(sp =>
 {
-    public class Program
+    var configSection = builder.Configuration.GetSection("Hystrix:Command:ExampleCommand");
+    var options = new HystrixCommandOptions(
+        HystrixCommandGroupKeyDefault.AsKey("ExampleGroup"),
+        HystrixCommandKeyDefault.AsKey("ExampleCommand"))
     {
-        [Obsolete]
-        public static void Main(string[] args)
-        {
-            var builder = WebApplication.CreateBuilder(args);
+        ExecutionTimeoutInMilliseconds = configSection.GetValue<int>("ExecutionTimeoutInMilliseconds"),
+        CircuitBreakerRequestVolumeThreshold = configSection.GetValue<int>("CircuitBreakerRequestVolumeThreshold"),
+        CircuitBreakerErrorThresholdPercentage = configSection.GetValue<int>("CircuitBreakerErrorThresholdPercentage"),
+        CircuitBreakerSleepWindowInMilliseconds = configSection.GetValue<int>("CircuitBreakerSleepWindowInMilliseconds")
+    };
+    return options;
+});
 
-            builder.Services.AddHystrixCommand<ExampleHystrixCommand>("ExampleCommand", builder.Configuration);
-            builder.Services.AddHttpClient<IExampleService, ExampleService>();
-            // Add services to the container.
+// Register ExampleHystrixCommand with HystrixCommandOptions and IExampleService
+builder.Services.AddSingleton(sp =>
+{
+    var options = sp.GetRequiredService<HystrixCommandOptions>();
+    var exampleService = sp.GetRequiredService<IExampleService>();
+    return new ExampleHystrixCommand(options, exampleService);
+});
 
-            builder.Services.AddControllers();
+// Register ExampleService and HTTP Client
+builder.Services.AddHttpClient<IExampleService, ExampleService>();
 
-            // Add Steeltoe Hystrix
-         
+// Add Controllers
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
-            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-            builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen();
-  
+var app = builder.Build();
 
-            var app = builder.Build();
-
-        
-
-            // Configure the HTTP request pipeline.
-            if (app.Environment.IsDevelopment())
-            {
-                app.UseSwagger();
-                app.UseSwaggerUI();
-            }
-            // Use Hystrix Dashboard (optional, for visualization)
-            //app.UseHystrixMetricsStream();
-            app.UseHttpsRedirection();
-
-            app.UseAuthorization();
-
-
-            app.MapControllers();
-
-            app.Run();
-        }
-    }
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
+
+app.UseHttpsRedirection();
+app.UseAuthorization();
+app.MapControllers();
+app.Run();
